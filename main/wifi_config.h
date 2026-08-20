@@ -15,7 +15,7 @@
  * terjadi. Cek channel router di app router / WiFi analyzer.
  * 0 = auto (scan semua channel, reconnect lebih lama & lebih sering
  * bikin AP freeze sebentar). */
-#define UPSTREAM_WIFI_CHANNEL   3
+#define UPSTREAM_WIFI_CHANNEL   0
 
 /* --- WiFi ESP --- */
 #define REPEATER_AP_SSID        "SERVERS3"

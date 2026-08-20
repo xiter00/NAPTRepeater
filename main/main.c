@@ -96,24 +96,6 @@ static void event_handler(void *arg, esp_event_base_t event_base,
         esp_netif_napt_enable(ap_netif);
         ESP_LOGI(TAG, "NAT/NAPT aktif. Client di AP sekarang bisa akses internet.");
 
-        /* Kunci channel AP biar sama persis dengan channel upstream.
-         * Radio cuma satu (APSTA), jadi AP WAJIB satu channel sama STA -
-         * IDF sebenernya udah auto-align, tapi kita paksa+log ulang di
-         * sini biar kalo ada mismatch (misal router ganti channel
-         * otomatis / ACS) langsung ke-sync tanpa nunggu event lain. */
-        {
-            wifi_ap_record_t ap_info;
-            if (esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK) {
-                wifi_config_t cur_ap_cfg;
-                if (esp_wifi_get_config(WIFI_IF_AP, &cur_ap_cfg) == ESP_OK &&
-                    cur_ap_cfg.ap.channel != ap_info.primary) {
-                    cur_ap_cfg.ap.channel = ap_info.primary;
-                    esp_wifi_set_config(WIFI_IF_AP, &cur_ap_cfg);
-                    ESP_LOGI(TAG, "AP channel disamain ke channel upstream: %d", ap_info.primary);
-                }
-            }
-        }
-
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_AP_STACONNECTED) {
         wifi_event_ap_staconnected_t *e = (wifi_event_ap_staconnected_t *) event_data;
         ESP_LOGI(TAG, "Device baru konek ke repeater, MAC: " MACSTR, MAC2STR(e->mac));
