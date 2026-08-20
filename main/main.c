@@ -75,7 +75,14 @@ static void event_handler(void *arg, esp_event_base_t event_base,
         ESP_LOGW(TAG, "Upstream WiFi terputus, mencoba reconnect...");
         xEventGroupClearBits(s_wifi_event_group, STA_CONNECTED_BIT);
 
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        /* Backoff: kalo sinyal lagi jelek & putus-nyambung terus, jangan
+         * spam scan+connect. Tiap scan/connect nyita radio dari AP, jadi
+         * device gaming ikut freeze tiap kali ini kejadian. watchdog_task
+         * yang jaga retry rutin tiap beberapa detik, jadi di sini kita
+         * cukup delay proporsional lalu balik nunggu. */
+        int delay_ms = 500 * (s_retry_num + 1);
+        if (delay_ms > STA_RECONNECT_MAX_DELAY_MS) delay_ms = STA_RECONNECT_MAX_DELAY_MS;
+        vTaskDelay(pdMS_TO_TICKS(delay_ms));
         esp_wifi_connect();
         s_retry_num++;
 
@@ -88,6 +95,24 @@ static void event_handler(void *arg, esp_event_base_t event_base,
 
         esp_netif_napt_enable(ap_netif);
         ESP_LOGI(TAG, "NAT/NAPT aktif. Client di AP sekarang bisa akses internet.");
+
+        /* Kunci channel AP biar sama persis dengan channel upstream.
+         * Radio cuma satu (APSTA), jadi AP WAJIB satu channel sama STA -
+         * IDF sebenernya udah auto-align, tapi kita paksa+log ulang di
+         * sini biar kalo ada mismatch (misal router ganti channel
+         * otomatis / ACS) langsung ke-sync tanpa nunggu event lain. */
+        {
+            wifi_ap_record_t ap_info;
+            if (esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK) {
+                wifi_config_t cur_ap_cfg;
+                if (esp_wifi_get_config(WIFI_IF_AP, &cur_ap_cfg) == ESP_OK &&
+                    cur_ap_cfg.ap.channel != ap_info.primary) {
+                    cur_ap_cfg.ap.channel = ap_info.primary;
+                    esp_wifi_set_config(WIFI_IF_AP, &cur_ap_cfg);
+                    ESP_LOGI(TAG, "AP channel disamain ke channel upstream: %d", ap_info.primary);
+                }
+            }
+        }
 
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_AP_STACONNECTED) {
         wifi_event_ap_staconnected_t *e = (wifi_event_ap_staconnected_t *) event_data;
@@ -143,9 +168,21 @@ static void wifi_init_sta(void)
             .threshold.authmode = WIFI_AUTH_WPA2_PSK,
             .scan_method = WIFI_FAST_SCAN,         
             .sort_method = WIFI_CONNECT_AP_BY_SIGNAL,
-            .rm_enabled = 1,
-            .btm_enabled = 1,
-            .listen_interval = 3,                    
+            /* rm/btm (802.11k/v) MATIIN. Ini yang paling sering bikin
+             * jitter "kadang lancar kadang freeze": kalo dinyalain, STA
+             * bisa diem-diem lompat off-channel buat scan kandidat AP
+             * lain buat roaming, dan karena radio cuma 1 (dipake AP juga),
+             * AP ikut kebawa off-channel sebentar -> device gaming freeze.
+             * Kita gak butuh roaming karena cuma nempel ke 1 router. */
+            .rm_enabled = 0,
+            .btm_enabled = 0,
+            .listen_interval = 3,
+#if UPSTREAM_WIFI_CHANNEL > 0
+            /* Kalo channel upstream udah diisi manual, connect langsung
+             * ke channel itu tanpa full scan -> reconnect jauh lebih
+             * cepat, radio lebih dikit "ilang" dari AP. */
+            .channel = UPSTREAM_WIFI_CHANNEL,
+#endif
         },
     };
     strncpy((char *)sta_config.sta.ssid, UPSTREAM_WIFI_SSID, sizeof(sta_config.sta.ssid));
@@ -177,13 +214,20 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    /* Perbesar buffer RX/TX untuk mengurangi packet drop saat lalu-lintas
-     * padat (banyak device / streaming game) -> mengurangi jitter */
+    /* Buffer RX dibesarin dikit buat downlink (video stream cloud gaming
+     * butuh throughput). Buffer TX & antrian dikecilin biar gak numpuk
+     * (bufferbloat) - buat link kecil 1-5Mbps, antrian TX yang kegedean
+     * cuma nambah delay pas ada burst, bukan nambah throughput beneran.
+     * Delay yang numpuk terus kekuras itu yang kerasa kayak "freeze
+     * bentar terus lancar lagi / patah-patah". */
     cfg.static_rx_buf_num = 16;
     cfg.dynamic_rx_buf_num = 32;
-    cfg.dynamic_tx_buf_num = 32;
-    cfg.ampdu_rx_enable = 1;
-    cfg.ampdu_tx_enable = 1;
+    cfg.dynamic_tx_buf_num = 16;
+    cfg.ampdu_rx_enable = 1;   /* downlink boleh di-agregasi, buat throughput video */
+    cfg.ampdu_tx_enable = 0;   /* uplink (input kontrol) JANGAN diagregasi -
+                                  A-MPDU nunggu ngumpulin beberapa paket dulu
+                                  sebelum kirim, itu nambah latency variabel
+                                  persis buat traffic kecil kayak input game */
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL));
