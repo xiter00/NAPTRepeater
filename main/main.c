@@ -188,15 +188,12 @@ void app_main(void)
     cfg.static_rx_buf_num = 16;
     cfg.dynamic_rx_buf_num = 32;
     cfg.dynamic_tx_buf_num = 32;
-    /* RX aggregation tetap ON -> downlink (video/stream cloud gaming) tetap
-     * ngebut & lancar kayak sebelumnya.
-     * TX aggregation DIMATIKAN -> paket kecil uplink (input kontrol) gak
-     * ketahan nunggu "ngumpul" buat digabung jadi 1 frame AMPDU, jadi
-     * langsung ditembak begitu ada. Ini akar penyebab jitter pas kontrol
-     * dimainin, sementara throughput besar (geser layar/browsing) gak
-     * kena dampak karena itu didominasi RX yang tetap teragregasi. */
+    /* AMPDU RX & TX tetap NYALA (jangan dimatiin total, itu bikin downlink
+     * video/stream jadi boros airtime -> radio penuh -> ping malah drop).
+     * Fix jitter kontrol dilakukan lewat BA window yang diperkecil di
+     * sdkconfig.defaults (CONFIG_ESP_WIFI_TX_BA_WIN), bukan di sini. */
     cfg.ampdu_rx_enable = 1;
-    cfg.ampdu_tx_enable = 0;
+    cfg.ampdu_tx_enable = 1;
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL));
