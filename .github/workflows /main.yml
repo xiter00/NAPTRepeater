@@ -1,0 +1,39 @@
+name: Compile ESP32-S3 NAT Router
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch: # Biar lu bisa klik tombol "Run workflow" manual di tab Actions
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Arduino CLI
+        uses: arduino/setup-arduino-cli@v2
+
+      - name: Install ESP32 Core
+        run: |
+          arduino-cli core update-index --additional-urls https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+          # Install core ESP32 versi terbaru
+          arduino-cli core install esp32:esp32 --additional-urls https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+
+      - name: Compile Sketch (Monster N16R8)
+        run: |
+          # FQBN khusus ESP32-S3 dengan settingan:
+          # Flash 16M | PSRAM OPI | Flash Mode DIO | Flash Freq 80MHz
+          arduino-cli compile \
+            --fqbn esp32:esp32:esp32s3:FlashSize=16M,PSRAM=opi,FlashMode=dio,FlashFreq=80 \
+            --build-path ./build \
+            ./WifiRepeater
+
+      - name: Upload Compiled Binary (.bin)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ESP32-S3-Firmware
+          # Ambil semua file .bin hasil compile (termasuk .ino.bin dan bootloader)
+          path: ./build/*.bin
