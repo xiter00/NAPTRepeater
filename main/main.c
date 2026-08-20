@@ -75,7 +75,12 @@ static void event_handler(void *arg, esp_event_base_t event_base,
         ESP_LOGW(TAG, "Upstream WiFi terputus, mencoba reconnect...");
         xEventGroupClearBits(s_wifi_event_group, STA_CONNECTED_BIT);
 
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        /* JANGAN vTaskDelay() di sini -> ini system event task, dipakai
+         * buat proses SEMUA event WiFi/IP. Kalau di-block, seluruh
+         * sistem (termasuk jalur NAPT) ikut freeze selama itu juga.
+         * Reconnect langsung tanpa nunggu -> freeze yang kerasa pas
+         * kontrol dimainin ilang, sisanya (watchdog_task) tetap jadi
+         * jaring pengaman kalau reconnect langsung ini gagal. */
         esp_wifi_connect();
         s_retry_num++;
 
