@@ -1,0 +1,73 @@
+# ============================================================
+#  Target chip
+# ============================================================
+CONFIG_IDF_TARGET="esp32s3"
+
+# ============================================================
+#  Flash: ESP32-S3 N16R8 = 16MB Flash (Quad) + 8MB PSRAM (Octal)
+# ============================================================
+CONFIG_ESPTOOLPY_FLASHMODE_DIO=y
+CONFIG_ESPTOOLPY_FLASHFREQ_80M=y
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="16MB"
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+CONFIG_PARTITION_TABLE_FILENAME="partitions.csv"
+CONFIG_PARTITION_TABLE_OFFSET=0x8000
+
+# ============================================================
+#  PSRAM: 8MB Octal (OPI) 
+# ============================================================
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_TYPE_AUTO=y
+CONFIG_SPIRAM_SPEED_80M=y
+CONFIG_SPIRAM_USE_MALLOC=y
+CONFIG_SPIRAM_MEMTEST=y
+CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY=y
+
+# ============================================================
+#  CPU & performa
+# ============================================================
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ=240
+CONFIG_FREERTOS_HZ=1000
+
+# ============================================================
+#  Bluetooth off
+# ============================================================
+CONFIG_BT_ENABLED=n
+
+# ============================================================
+#  lwIP: IP Forwarding + NAPT
+# ============================================================
+CONFIG_LWIP_IP_FORWARD=y
+CONFIG_LWIP_IPV4_NAPT=y
+CONFIG_LWIP_L2_TO_L3_COPY=y
+CONFIG_LWIP_TCP_SND_BUF_DEFAULT=65535
+CONFIG_LWIP_TCP_WND_DEFAULT=65535
+CONFIG_LWIP_TCP_RECVMBOX_SIZE=64
+CONFIG_LWIP_UDP_RECVMBOX_SIZE=64
+CONFIG_LWIP_TCPIP_RECVMBOX_SIZE=64
+CONFIG_LWIP_MAX_ACTIVE_TCP=32
+CONFIG_LWIP_MAX_UDP_PCBS=32
+CONFIG_LWIP_TCP_MAXRTX=6
+CONFIG_LWIP_TCP_SYNMAXRTX=3
+
+
+# ============================================================
+#  WiFi driver
+# ============================================================
+CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM=16
+CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM=32
+CONFIG_ESP_WIFI_DYNAMIC_TX_BUFFER_NUM=32
+CONFIG_ESP_WIFI_AMPDU_TX_ENABLED=y
+CONFIG_ESP_WIFI_AMPDU_RX_ENABLED=y
+CONFIG_ESP_WIFI_NVS_ENABLED=y
+CONFIG_ESP_WIFI_SOFTAP_SUPPORT=y
+
+# ============================================================
+#  Watchdog & logging
+# ============================================================
+CONFIG_ESP_TASK_WDT_INIT=y
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y

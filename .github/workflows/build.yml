@@ -1,0 +1,59 @@
+name: NAPTRepeater 
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Build firmware
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.3
+          target: esp32s3
+          command: idf.py build
+
+      - name: Merge binaries
+        run: |
+          pip install esptool
+          cd build
+          python -m esptool --chip esp32s3 merge_bin \
+            -o ../esp32s3-wifi-repeater-MERGED.bin \
+            --flash_mode dio \
+            --flash_freq 80m \
+            --flash_size 16MB \
+            0x0 bootloader/bootloader.bin \
+            0x8000 partition_table/partition-table.bin \
+            0x10000 esp32s3-wifi-repeater.bin
+          cd ..
+
+      - name: Packages
+        run: |
+          mkdir -p release_package
+          cp esp32s3-wifi-repeater-MERGED.bin release_package/
+          cp build/bootloader/bootloader.bin release_package/
+          cp build/partition_table/partition-table.bin release_package/
+          cp build/esp32s3-wifi-repeater.bin release_package/app.bin
+          cp README.md release_package/ || true
+   
+          
+         
+
+      - name: Zip semua output
+        run: |
+          cd release_package
+          zip -r ../esp32s3-wifi-repeater-firmware.zip .
+          cd ..
+
+      - name: Upload artifact ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: esp32s3-wifi-repeater-firmware
+          path: esp32s3-wifi-repeater-firmware.zip
+          retention-days: 30
