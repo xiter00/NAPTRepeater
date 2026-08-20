@@ -24,12 +24,13 @@ jobs:
 
       - name: Compile Sketch (Monster N16R8)
         run: |
-          # FQBN khusus ESP32-S3 dengan settingan:
-          # Flash 16M | PSRAM OPI | Flash Mode DIO | Flash Freq 80MHz
+          # FQBN ESP32-S3 dengan Flash 16M, PSRAM OPI, Flash Mode DIO 
+          # (Frekuensi otomatis default di 80MHz)
           arduino-cli compile \
-            --fqbn esp32:esp32:esp32s3:FlashSize=16M,PSRAM=opi,FlashMode=dio,FlashFreq=80 \
+            --fqbn esp32:esp32:esp32s3:FlashSize=16M,PSRAM=opi,FlashMode=dio \
             --build-path ./build \
             ./WifiRepeater
+
 
       - name: Upload Compiled Binary (.bin)
         uses: actions/upload-artifact@v4
