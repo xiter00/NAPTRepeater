@@ -75,14 +75,7 @@ static void event_handler(void *arg, esp_event_base_t event_base,
         ESP_LOGW(TAG, "Upstream WiFi terputus, mencoba reconnect...");
         xEventGroupClearBits(s_wifi_event_group, STA_CONNECTED_BIT);
 
-        /* Backoff: kalo sinyal lagi jelek & putus-nyambung terus, jangan
-         * spam scan+connect. Tiap scan/connect nyita radio dari AP, jadi
-         * device gaming ikut freeze tiap kali ini kejadian. watchdog_task
-         * yang jaga retry rutin tiap beberapa detik, jadi di sini kita
-         * cukup delay proporsional lalu balik nunggu. */
-        int delay_ms = 500 * (s_retry_num + 1);
-        if (delay_ms > STA_RECONNECT_MAX_DELAY_MS) delay_ms = STA_RECONNECT_MAX_DELAY_MS;
-        vTaskDelay(pdMS_TO_TICKS(delay_ms));
+        vTaskDelay(pdMS_TO_TICKS(1000));
         esp_wifi_connect();
         s_retry_num++;
 
@@ -150,21 +143,15 @@ static void wifi_init_sta(void)
             .threshold.authmode = WIFI_AUTH_WPA2_PSK,
             .scan_method = WIFI_FAST_SCAN,         
             .sort_method = WIFI_CONNECT_AP_BY_SIGNAL,
-            /* rm/btm (802.11k/v) MATIIN. Ini yang paling sering bikin
-             * jitter "kadang lancar kadang freeze": kalo dinyalain, STA
-             * bisa diem-diem lompat off-channel buat scan kandidat AP
-             * lain buat roaming, dan karena radio cuma 1 (dipake AP juga),
-             * AP ikut kebawa off-channel sebentar -> device gaming freeze.
-             * Kita gak butuh roaming karena cuma nempel ke 1 router. */
+            /* rm/btm (802.11k/v) dimatikan: kalau nyala, STA kadang harus
+             * "nengok" ke channel lain buat ngirim neighbor report ke
+             * router utama. Karena radio AP+STA di sini cuma satu, pas
+             * nengok itu koneksi ke client freeze sepersekian detik ->
+             * kerasa jadi jitter pas kontrol dimainin (video gak begitu
+             * kerasa karena kebantu buffer). */
             .rm_enabled = 0,
             .btm_enabled = 0,
-            .listen_interval = 3,
-#if UPSTREAM_WIFI_CHANNEL > 0
-            /* Kalo channel upstream udah diisi manual, connect langsung
-             * ke channel itu tanpa full scan -> reconnect jauh lebih
-             * cepat, radio lebih dikit "ilang" dari AP. */
-            .channel = UPSTREAM_WIFI_CHANNEL,
-#endif
+            .listen_interval = 3,                    
         },
     };
     strncpy((char *)sta_config.sta.ssid, UPSTREAM_WIFI_SSID, sizeof(sta_config.sta.ssid));
@@ -196,20 +183,20 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    /* Buffer RX dibesarin dikit buat downlink (video stream cloud gaming
-     * butuh throughput). Buffer TX & antrian dikecilin biar gak numpuk
-     * (bufferbloat) - buat link kecil 1-5Mbps, antrian TX yang kegedean
-     * cuma nambah delay pas ada burst, bukan nambah throughput beneran.
-     * Delay yang numpuk terus kekuras itu yang kerasa kayak "freeze
-     * bentar terus lancar lagi / patah-patah". */
+    /* Perbesar buffer RX/TX untuk mengurangi packet drop saat lalu-lintas
+     * padat (banyak device / streaming game) -> mengurangi jitter */
     cfg.static_rx_buf_num = 16;
     cfg.dynamic_rx_buf_num = 32;
-    cfg.dynamic_tx_buf_num = 16;
-    cfg.ampdu_rx_enable = 1;   /* downlink boleh di-agregasi, buat throughput video */
-    cfg.ampdu_tx_enable = 0;   /* uplink (input kontrol) JANGAN diagregasi -
-                                  A-MPDU nunggu ngumpulin beberapa paket dulu
-                                  sebelum kirim, itu nambah latency variabel
-                                  persis buat traffic kecil kayak input game */
+    cfg.dynamic_tx_buf_num = 32;
+    /* RX aggregation tetap ON -> downlink (video/stream cloud gaming) tetap
+     * ngebut & lancar kayak sebelumnya.
+     * TX aggregation DIMATIKAN -> paket kecil uplink (input kontrol) gak
+     * ketahan nunggu "ngumpul" buat digabung jadi 1 frame AMPDU, jadi
+     * langsung ditembak begitu ada. Ini akar penyebab jitter pas kontrol
+     * dimainin, sementara throughput besar (geser layar/browsing) gak
+     * kena dampak karena itu didominasi RX yang tetap teragregasi. */
+    cfg.ampdu_rx_enable = 1;
+    cfg.ampdu_tx_enable = 0;
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL));

@@ -44,15 +44,8 @@ CONFIG_BT_ENABLED=n
 CONFIG_LWIP_IP_FORWARD=y
 CONFIG_LWIP_IPV4_NAPT=y
 CONFIG_LWIP_L2_TO_L3_COPY=y
-# Window TCP diturunin dari 64KB -> 16KB. Link kalian cuma 1-5Mbps;
-# window segede 64KB artinya router/device lain di jaringan bisa
-# nge-buffer >400ms data sebelum kerasa "penuh". Selama buffer itu
-# ngantri, paket UDP game kalian ikut nunggu di belakang antrian yang
-# sama (head-of-line delay) -> ini salah satu penyebab utama jitter
-# "patah-patah lalu lancar lagi". 16KB cukup buat throughput normal
-# tapi jauh lebih kecil delay-nya pas ada burst traffic TCP.
-CONFIG_LWIP_TCP_SND_BUF_DEFAULT=16384
-CONFIG_LWIP_TCP_WND_DEFAULT=16384
+CONFIG_LWIP_TCP_SND_BUF_DEFAULT=65535
+CONFIG_LWIP_TCP_WND_DEFAULT=65535
 CONFIG_LWIP_TCP_RECVMBOX_SIZE=64
 CONFIG_LWIP_UDP_RECVMBOX_SIZE=64
 CONFIG_LWIP_TCPIP_RECVMBOX_SIZE=64
@@ -67,11 +60,8 @@ CONFIG_LWIP_TCP_SYNMAXRTX=3
 # ============================================================
 CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM=16
 CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM=32
-CONFIG_ESP_WIFI_DYNAMIC_TX_BUFFER_NUM=16
-# TX A-MPDU dimatiin (uplink/kontrol gak boleh nunggu diagregasi dulu),
-# RX A-MPDU tetep nyala (downlink/video butuh throughput). Ini konsisten
-# sama cfg.ampdu_tx_enable/rx_enable di main.c.
-CONFIG_ESP_WIFI_AMPDU_TX_ENABLED=n
+CONFIG_ESP_WIFI_DYNAMIC_TX_BUFFER_NUM=32
+CONFIG_ESP_WIFI_AMPDU_TX_ENABLED=y
 CONFIG_ESP_WIFI_AMPDU_RX_ENABLED=y
 CONFIG_ESP_WIFI_NVS_ENABLED=y
 CONFIG_ESP_WIFI_SOFTAP_SUPPORT=y
