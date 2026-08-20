@@ -6,8 +6,8 @@
  */
 
 /* --- WiFi SUMBER --- */
-#define UPSTREAM_WIFI_SSID      "namawifitarget"
-#define UPSTREAM_WIFI_PASS      "passwordwifi"
+#define UPSTREAM_WIFI_SSID      "AYYUBI"
+#define UPSTREAM_WIFI_PASS      "rumahabi123"
 
 /* --- WiFi ESP --- */
 #define REPEATER_AP_SSID        "SERVERS3"
